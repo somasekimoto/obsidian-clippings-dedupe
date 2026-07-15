@@ -62,7 +62,7 @@ included in [`templates/`](templates/), with Japanese variants in
 | --- | --- | --- |
 | Clippings folder | `Clippings` | Only notes in this folder are watched |
 | Comment label | `**Note**: ` | Label under each quote; written comments are always preserved |
-| Highlights heading keyword | `Highlight` | Headings containing this word are treated as highlight sections |
+| Highlights heading keyword | `Highlight` | `##` headings containing this word are treated as highlight sections |
 | Merged section heading | `## Highlights` | Heading for the merged section |
 | Keep backups | on | Snapshot notes before rewriting |
 
