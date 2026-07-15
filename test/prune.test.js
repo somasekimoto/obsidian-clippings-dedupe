@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { selectBackupsToPrune } = require('../main.js');
+const { selectBackupsToPrune, backupFileName, backupStamp } = require('../main.js');
 
 const DIR = '.obsidian/plugins/clippings-dedupe/backups';
 function b(name, stamp) {
@@ -54,9 +54,28 @@ ok('ドットを含むノート名でもスタンプを正しく読む', () => {
 	]);
 });
 
-ok('スタンプが読めないファイルは最古扱いで先に消える', () => {
-	const files = [`${DIR}/stray-file.md`, b('note', '2026-07-16T00-00-00-000Z')];
-	assert.deepStrictEqual(selectBackupsToPrune(files, 1), [`${DIR}/stray-file.md`]);
+ok('自プラグイン形式でないファイルは絶対に削除候補にしない', () => {
+	const strangers = [
+		`${DIR}/stray-file.md`, // スタンプなし
+		`${DIR}/manual-copy.2026-07-01.md`, // 桁数不足の日付
+		`${DIR}/note.2026-7-1T00-00-00-000Z.md`, // 桁が崩れた日付
+		`${DIR}/note.2026-07-01T00-00-00-000Z.txt`, // 拡張子違い
+		`${DIR}/future-format.2026-07-01T00-00-00-000Z-v2.md`, // 未来の別形式
+	];
+	const own = [b('note', '2026-07-16T00-00-00-000Z'), b('note', '2026-07-15T00-00-00-000Z')];
+	assert.deepStrictEqual(selectBackupsToPrune([...strangers, ...own], 1), [
+		b('note', '2026-07-15T00-00-00-000Z'),
+	]);
+	// 認識できないファイルは上限のカウントにも入らない
+	assert.deepStrictEqual(selectBackupsToPrune(strangers, 0), []);
+});
+
+ok('生成と解析が同じ形式（codecの往復）', () => {
+	const date = new Date('2026-07-16T01:23:45.678Z');
+	const name = backupFileName('メモ.付き.ノート', date);
+	assert.strictEqual(name, 'メモ.付き.ノート.2026-07-16T01-23-45-678Z.md');
+	assert.strictEqual(backupStamp(`${DIR}/${name}`), '2026-07-16T01-23-45-678Z');
+	assert.deepStrictEqual(selectBackupsToPrune([`${DIR}/${name}`], 0), [`${DIR}/${name}`]);
 });
 
 ok('入力配列を破壊しない', () => {

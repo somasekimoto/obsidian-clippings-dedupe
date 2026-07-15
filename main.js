@@ -93,20 +93,37 @@ function parseUnits(sectionBody, settings) {
 	return units;
 }
 
+/*
+ * Backup file name codec. Generation and parsing share one format so a future
+ * format change cannot silently break pruning: `<note basename>.<stamp>.md`,
+ * where the stamp is an ISO timestamp with ':' and '.' replaced by '-'
+ * (millisecond precision keeps names collision-free and lexicographically
+ * sortable by age).
+ */
+const BACKUP_STAMP_RE = /\.(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.md$/;
+
+function backupFileName(baseName, date) {
+	return `${baseName}.${date.toISOString().replace(/[:.]/g, '-')}.md`;
+}
+
+function backupStamp(path) {
+	const m = path.match(BACKUP_STAMP_RE);
+	return m ? m[1] : null;
+}
+
 /**
- * Pick which backup files to delete so that only `max` remain, deleting the
- * oldest first. Backup names end with `.<ISO timestamp>.md`, so age is read
- * from the name; files without a parseable stamp are treated as oldest.
+ * Pick which backup files to delete so that at most `max` snapshots remain,
+ * deleting the oldest first. Only files that strictly match this plugin's
+ * own backup name format are ever candidates — legacy files, manual copies,
+ * or future formats are left alone (and don't count toward the limit).
+ * The cap is a simple global bound on disk usage; dedupe rewrites are rare,
+ * so per-note retention would add complexity without protecting much.
  */
 function selectBackupsToPrune(paths, max) {
-	const stampOf = (p) => {
-		const m = p.match(/\.(\d{4}-\d{2}-\d{2}T[\d-]+Z)\.md$/);
-		return m ? m[1] : '';
-	};
-	return paths
-		.slice()
-		.sort((a, b) => (stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : 0))
-		.slice(0, Math.max(0, paths.length - max));
+	const stamped = paths.filter((p) => backupStamp(p) !== null);
+	return stamped
+		.sort((a, b) => backupStamp(a).localeCompare(backupStamp(b)))
+		.slice(0, Math.max(0, stamped.length - max));
 }
 
 /** Return the deduplicated note text, or null when nothing changes. */
@@ -281,12 +298,24 @@ if (obsidian) {
 			const dir = `${this.manifest.dir}/backups`;
 			const adapter = this.app.vault.adapter;
 			if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
-			const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-			await adapter.write(`${dir}/${file.basename}.${stamp}.md`, text);
-			// prune oldest snapshots beyond the limit
-			const listing = await adapter.list(dir);
-			for (const old of selectBackupsToPrune(listing.files, this.settings.maxBackups)) {
-				await adapter.remove(old);
+			// notes with the same basename in different folders can collide on
+			// the same millisecond — bump the stamp until the name is free
+			let time = Date.now();
+			let target = `${dir}/${backupFileName(file.basename, new Date(time))}`;
+			while (await adapter.exists(target)) {
+				time += 1;
+				target = `${dir}/${backupFileName(file.basename, new Date(time))}`;
+			}
+			// writing the snapshot must succeed before the note is rewritten,
+			// so failures here propagate; pruning below is best-effort upkeep
+			await adapter.write(target, text);
+			try {
+				const listing = await adapter.list(dir);
+				for (const old of selectBackupsToPrune(listing.files, this.settings.maxBackups)) {
+					await adapter.remove(old);
+				}
+			} catch (e) {
+				console.error('[clippings-dedupe] backup pruning failed', e);
 			}
 		}
 
@@ -317,5 +346,13 @@ if (obsidian) {
 
 	module.exports = ClippingsDedupePlugin;
 } else {
-	module.exports = { dedupe, parseUnits, splitFrontmatter, selectBackupsToPrune, DEFAULT_SETTINGS };
+	module.exports = {
+		dedupe,
+		parseUnits,
+		splitFrontmatter,
+		selectBackupsToPrune,
+		backupFileName,
+		backupStamp,
+		DEFAULT_SETTINGS,
+	};
 }
