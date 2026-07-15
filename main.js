@@ -159,7 +159,9 @@ if (obsidian) {
 				.setDesc('Only notes inside this folder are watched and deduplicated.')
 				.addText((t) =>
 					t.setValue(this.plugin.settings.folder).onChange(async (v) => {
-						this.plugin.settings.folder = v.replace(/\/+$/, '');
+						this.plugin.settings.folder = obsidian
+							.normalizePath(v.trim())
+							.replace(/\/+$/, '');
 						await this.plugin.saveSettings();
 					})
 				);
@@ -235,18 +237,30 @@ if (obsidian) {
 			await this.saveData(this.settings);
 		}
 
+		/**
+		 * Vault-relative prefix of the watched folder, or null when the
+		 * setting is empty/whitespace — then nothing is watched, instead of
+		 * accidentally matching the whole vault.
+		 */
 		folderPrefix() {
-			return this.settings.folder.replace(/\/+$/, '') + '/';
+			const folder = this.settings.folder.trim();
+			if (!folder) return null;
+			const normalized = obsidian.normalizePath(folder).replace(/\/+$/, '');
+			return normalized === '/' || normalized === '' ? null : normalized + '/';
 		}
 
 		sweep() {
+			const prefix = this.folderPrefix();
+			if (!prefix) return;
 			for (const file of this.app.vault.getMarkdownFiles()) {
-				if (file.path.startsWith(this.folderPrefix())) this.run(file);
+				if (file.path.startsWith(prefix)) this.run(file);
 			}
 		}
 
 		schedule(file) {
-			if (!file || !file.path || !file.path.startsWith(this.folderPrefix())) return;
+			const prefix = this.folderPrefix();
+			if (!prefix) return;
+			if (!file || !file.path || !file.path.startsWith(prefix)) return;
 			if (!file.path.endsWith('.md')) return;
 			if (this.applying.has(file.path)) return;
 			const prev = this.timers.get(file.path);
