@@ -37,32 +37,33 @@ Notes without duplicates are never touched.
 The plugin understands notes whose highlight sections look like:
 
 ```markdown
-## 📌 ハイライト
+## Highlights
 
 > first highlighted passage
 
-**✍️ メモ**: your comment here
+**Note**: your comment here
 
 ---
 
 > second highlighted passage
 
-**✍️ メモ**:
+**Note**:
 ```
 
 The folder, comment label, and section headings are all configurable in
 settings, so any clipper template with a `quote → comment label → ---`
 structure works. A matching Web Clipper template pair (create + append) is
-included in [`templates/`](templates/).
+included in [`templates/`](templates/), with Japanese variants in
+[`templates/ja/`](templates/ja/).
 
 ## Settings
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | Clippings folder | `Clippings` | Only notes in this folder are watched |
-| Comment label | `**✍️ メモ**: ` | Label under each quote; written comments are always preserved |
-| Highlights heading keyword | `ハイライト` | `##`/`###` headings containing this word are treated as highlight sections |
-| Merged section heading | `## 📌 ハイライト` | Heading for the merged section |
+| Comment label | `**Note**: ` | Label under each quote; written comments are always preserved |
+| Highlights heading keyword | `Highlight` | Headings containing this word are treated as highlight sections |
+| Merged section heading | `## Highlights` | Heading for the merged section |
 | Keep backups | on | Snapshot notes before rewriting |
 
 ## Install
@@ -99,4 +100,9 @@ npm run deploy    # run tests, then copy main.js + manifest.json into your vault
 - 末尾に追記された「（... 追加）」セクションをメインのハイライトセクションに合流
 - 書き換え前にプラグインフォルダ内 `backups/` へスナップショット保存
 
-フォルダ名・メモラベル・見出しは設定で変更できます。
+フォルダ名・メモラベル・見出しは設定で変更できます。日本語テンプレート
+（`templates/ja/`）を使う場合は、設定画面で次の3つを合わせてください:
+
+- Comment label → `**✍️ メモ**: `
+- Highlights heading keyword → `ハイライト`
+- Merged section heading → `## 📌 ハイライト`

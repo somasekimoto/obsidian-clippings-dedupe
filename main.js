@@ -28,9 +28,9 @@ try {
 
 const DEFAULT_SETTINGS = {
 	folder: 'Clippings',
-	memoLabel: '**✍️ メモ**: ',
-	mergedHeading: '## 📌 ハイライト',
-	headingKeyword: 'ハイライト',
+	memoLabel: '**Note**: ',
+	mergedHeading: '## Highlights',
+	headingKeyword: 'Highlight',
 	keepBackups: true,
 	maxBackups: 30,
 };

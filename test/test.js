@@ -1,10 +1,10 @@
 'use strict';
 
 const assert = require('assert');
-const { dedupe } = require('../main.js');
+const { dedupe, DEFAULT_SETTINGS } = require('../main.js');
 
 const FM = `---
-title: テスト記事
+title: Test article
 source: https://example.com/article
 tags:
   - clippings
@@ -12,35 +12,33 @@ tags:
 ---
 `;
 
-const ABSTRACT = `> [!abstract]- 記事の概要
-> これは記事の概要です。
+const ABSTRACT = `> [!abstract]- Summary
+> This is the article summary.
 
 `;
 
-function unit(quote, memo = '') {
-	return `> ${quote}\n\n**✍️ メモ**: ${memo}`.trimEnd() + (memo ? '' : ' ');
+function unit(quote, memo = '', label = '**Note**: ') {
+	return `> ${quote}\n\n${label}${memo}`.trimEnd() + (memo ? '' : ' ');
 }
 
-function note(units, extra = '') {
+function note(units, { heading = '## Highlights', closing = '## Closing notes' } = {}) {
 	return (
 		FM +
 		ABSTRACT +
-		'## 📌 ハイライト\n\n' +
+		heading +
+		'\n\n' +
 		units.join('\n\n---\n\n') +
-		'\n\n## ✍️ 全体メモ\n\n- \n' +
-		extra
+		`\n\n${closing}\n\n- \n`
 	);
 }
 
-function appended(units, stamp = '2026-07-11T02:18:59+09:00') {
-	return (
-		`\n## 📌 ハイライト（${stamp} 追加）\n\n` + units.join('\n\n---\n\n') + '\n'
-	);
+function appended(units, { heading = '## Highlights', stamp = '2026-07-11T02:18:59+09:00' } = {}) {
+	return `\n${heading} (added ${stamp})\n\n` + units.join('\n\n---\n\n') + '\n';
 }
 
-const Q1 = '一つ目のハイライトです。長い文章がここに入ります。';
-const Q2 = '二つ目のハイライトです。[リンク](https://example.com)も含みます。';
-const Q3 = '三つ目の、まだノートに無い新しいハイライトです。';
+const Q1 = 'The first highlighted passage, a fairly long sentence.';
+const Q2 = 'The second highlighted passage with a [link](https://example.com).';
+const Q3 = 'A third, brand-new highlight that is not in the note yet.';
 
 let passed = 0;
 function ok(name, fn) {
@@ -49,8 +47,8 @@ function ok(name, fn) {
 	console.log(`  ok - ${name}`);
 }
 
-ok('重複はマージされ新規は残る', () => {
-	const original = note([unit(Q1, '書いたメモ'), unit(Q2)]) + appended([unit(Q1), unit(Q2), unit(Q3)]);
+ok('duplicates merge, new highlights survive', () => {
+	const original = note([unit(Q1, 'my comment'), unit(Q2)]) + appended([unit(Q1), unit(Q2), unit(Q3)]);
 	const out = dedupe(original);
 	assert.notStrictEqual(out, null);
 	assert.strictEqual(out.split(Q1).length - 1, 1);
@@ -58,58 +56,77 @@ ok('重複はマージされ新規は残る', () => {
 	assert(out.includes(Q3));
 });
 
-ok('書いたメモは絶対に消えない', () => {
-	const original = note([unit(Q1, '大事なメモ')]) + appended([unit(Q1)]);
-	const out = dedupe(original);
-	assert(out.includes('大事なメモ'));
+ok('written comments are never lost', () => {
+	const original = note([unit(Q1, 'important comment')]) + appended([unit(Q1)]);
+	assert(dedupe(original).includes('important comment'));
 });
 
-ok('メモは後から書いた方でも保護される', () => {
-	const original = note([unit(Q1)]) + appended([unit(Q1, '後から書いたメモ')]);
+ok('a comment written on the later copy wins', () => {
+	const original = note([unit(Q1)]) + appended([unit(Q1, 'comment written later')]);
 	const out = dedupe(original);
-	assert(out.includes('後から書いたメモ'));
+	assert(out.includes('comment written later'));
 	assert.strictEqual(out.split(Q1).length - 1, 1);
 });
 
-ok('同じ引用に別々のメモがあれば両方残す', () => {
-	const original = note([unit(Q1, '最初のメモ')]) + appended([unit(Q1, '別の観点のメモ')]);
+ok('two different comments on the same quote are both kept', () => {
+	const original = note([unit(Q1, 'first comment')]) + appended([unit(Q1, 'a different take')]);
 	const out = dedupe(original);
-	assert(out.includes('最初のメモ'));
-	assert(out.includes('別の観点のメモ'));
+	assert(out.includes('first comment'));
+	assert(out.includes('a different take'));
 });
 
-ok('追記セクションはメインに合流し全体メモが末尾に残る', () => {
+ok('appended sections fold into the main section, closing section stays last', () => {
 	const original = note([unit(Q1)]) + appended([unit(Q3)]);
 	const out = dedupe(original);
-	assert(!out.includes('追加）'));
-	assert.strictEqual(out.split('## 📌 ハイライト').length - 1, 1);
-	assert(out.indexOf(Q3) < out.indexOf('## ✍️ 全体メモ'));
+	assert(!out.includes('(added'));
+	assert.strictEqual(out.split('## Highlights').length - 1, 1);
+	assert(out.indexOf(Q3) < out.indexOf('## Closing notes'));
 	assert(out.trimEnd().endsWith('-'));
 });
 
-ok('冪等: 一度整理したノートには手を出さない', () => {
-	const original = note([unit(Q1, 'メモ'), unit(Q2)]) + appended([unit(Q1), unit(Q3)]);
-	const out = dedupe(original);
-	assert.strictEqual(dedupe(out), null);
+ok('idempotent: a merged note is left alone', () => {
+	const original = note([unit(Q1, 'comment'), unit(Q2)]) + appended([unit(Q1), unit(Q3)]);
+	assert.strictEqual(dedupe(dedupe(original)), null);
 });
 
-ok('重複のないきれいなノートには手を出さない', () => {
-	assert.strictEqual(dedupe(note([unit(Q1, 'メモ'), unit(Q2)])), null);
+ok('a clean note without duplicates is left alone', () => {
+	assert.strictEqual(dedupe(note([unit(Q1, 'comment'), unit(Q2)])), null);
 });
 
-ok('ハイライトセクションが無いノートは対象外', () => {
-	assert.strictEqual(dedupe(FM + '# ただのノート\n\n本文です。\n'), null);
+ok('notes without a highlights section are ignored', () => {
+	assert.strictEqual(dedupe(FM + '# Just a note\n\nBody text.\n'), null);
 });
 
-ok('引用の無いはぐれた書き込みは前のブロックに保全される', () => {
-	const original = note([unit(Q1, 'メモ') + '\n\n---\n\nはぐれた自由記述テキスト']) + appended([unit(Q1)]);
-	const out = dedupe(original);
-	assert(out.includes('はぐれた自由記述テキスト'));
+ok('stray writing without a quote is preserved with the previous block', () => {
+	const original = note([unit(Q1, 'comment') + '\n\n---\n\nstray free-form text']) + appended([unit(Q1)]);
+	assert(dedupe(original).includes('stray free-form text'));
 });
 
-ok('単位が全滅するケースでは書き換えない', () => {
-	const original = FM + '## 📌 ハイライト\n\n**✍️ メモ**: \n';
-	assert.strictEqual(dedupe(original), null);
+ok('never rewrites when no unit survives', () => {
+	assert.strictEqual(dedupe(FM + '## Highlights\n\n**Note**: \n'), null);
+});
+
+ok('custom settings: Japanese labels and headings work end to end', () => {
+	const settings = Object.assign({}, DEFAULT_SETTINGS, {
+		memoLabel: '**✍️ メモ**: ',
+		mergedHeading: '## 📌 ハイライト',
+		headingKeyword: 'ハイライト',
+	});
+	const ja = (q, m = '') => unit(q, m, '**✍️ メモ**: ');
+	const original =
+		note([ja('一つ目のハイライト。', '書いたメモ'), ja('二つ目のハイライト。')], {
+			heading: '## 📌 ハイライト',
+			closing: '## ✍️ 全体メモ',
+		}) +
+		'\n## 📌 ハイライト（2026-07-11 追加）\n\n' +
+		[ja('一つ目のハイライト。'), ja('新しいハイライト。')].join('\n\n---\n\n') +
+		'\n';
+	const out = dedupe(original, settings);
+	assert.strictEqual(out.split('一つ目のハイライト。').length - 1, 1);
+	assert(out.includes('書いたメモ'));
+	assert(out.includes('新しいハイライト。'));
+	assert(!out.includes('追加）'));
+	assert(out.indexOf('新しいハイライト。') < out.indexOf('## ✍️ 全体メモ'));
 });
 
 console.log(`\n${passed} tests passed`);
