@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"description": "Obsidian plugin: merge duplicate highlights appended by Web Clipper",
 	"scripts": {
-		"test": "node test/test.js",
+		"test": "node test/test.js && node test/prune.test.js",
 		"deploy": "bash scripts/deploy.sh"
 	},
 	"license": "MIT"

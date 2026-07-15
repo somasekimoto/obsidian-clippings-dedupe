@@ -93,6 +93,22 @@ function parseUnits(sectionBody, settings) {
 	return units;
 }
 
+/**
+ * Pick which backup files to delete so that only `max` remain, deleting the
+ * oldest first. Backup names end with `.<ISO timestamp>.md`, so age is read
+ * from the name; files without a parseable stamp are treated as oldest.
+ */
+function selectBackupsToPrune(paths, max) {
+	const stampOf = (p) => {
+		const m = p.match(/\.(\d{4}-\d{2}-\d{2}T[\d-]+Z)\.md$/);
+		return m ? m[1] : '';
+	};
+	return paths
+		.slice()
+		.sort((a, b) => (stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : 0))
+		.slice(0, Math.max(0, paths.length - max));
+}
+
 /** Return the deduplicated note text, or null when nothing changes. */
 function dedupe(original, settings = DEFAULT_SETTINGS) {
 	const headingRe = highlightHeadingRe(settings);
@@ -269,8 +285,7 @@ if (obsidian) {
 			await adapter.write(`${dir}/${file.basename}.${stamp}.md`, text);
 			// prune oldest snapshots beyond the limit
 			const listing = await adapter.list(dir);
-			const files = listing.files.sort();
-			for (const old of files.slice(0, Math.max(0, files.length - this.settings.maxBackups))) {
+			for (const old of selectBackupsToPrune(listing.files, this.settings.maxBackups)) {
 				await adapter.remove(old);
 			}
 		}
@@ -302,5 +317,5 @@ if (obsidian) {
 
 	module.exports = ClippingsDedupePlugin;
 } else {
-	module.exports = { dedupe, parseUnits, splitFrontmatter, DEFAULT_SETTINGS };
+	module.exports = { dedupe, parseUnits, splitFrontmatter, selectBackupsToPrune, DEFAULT_SETTINGS };
 }
