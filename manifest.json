@@ -1,0 +1,10 @@
+{
+	"id": "clippings-dedupe",
+	"name": "Clippings Dedupe",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"description": "Merge duplicate highlights that Web Clipper appends when re-clipping a page, while protecting the comments you write under each quote.",
+	"author": "Soma Sekimoto",
+	"authorUrl": "https://github.com/somasekimoto",
+	"isDesktopOnly": false
+}

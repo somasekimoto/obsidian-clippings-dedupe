@@ -1,0 +1,46 @@
+{
+	"schemaVersion": "0.1.0",
+	"name": "Highlights + メモ",
+	"behavior": "create",
+	"noteContentFormat": "> [!abstract]- 記事の概要\n> {{description}}\n\n## 📌 ハイライト\n\n> {{highlights|map:i => i.text|join:\"\\n\\n**✍️ メモ**: \\n\\n---\\n\\n> \"}}\n\n**✍️ メモ**: \n\n---\n\n## ✍️ 全体メモ\n\n- \n",
+	"properties": [
+		{
+			"name": "title",
+			"value": "{{title}}",
+			"type": "text"
+		},
+		{
+			"name": "source",
+			"value": "{{url}}",
+			"type": "text"
+		},
+		{
+			"name": "author",
+			"value": "{{author|split:\", \"|wikilink|join}}",
+			"type": "multitext"
+		},
+		{
+			"name": "published",
+			"value": "{{published}}",
+			"type": "date"
+		},
+		{
+			"name": "created",
+			"value": "{{date}}",
+			"type": "date"
+		},
+		{
+			"name": "description",
+			"value": "{{description}}",
+			"type": "text"
+		},
+		{
+			"name": "tags",
+			"value": "clippings,highlights",
+			"type": "multitext"
+		}
+	],
+	"triggers": [],
+	"noteNameFormat": "{{title}}",
+	"path": "Clippings"
+}
