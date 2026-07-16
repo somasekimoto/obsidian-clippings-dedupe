@@ -10,12 +10,12 @@ function ok(name, fn) {
 	console.log(`  ok - ${name}`);
 }
 
-ok('data.json なし (null) ならデフォルト', () => {
+ok('missing data.json (null) yields the defaults', () => {
 	assert.deepStrictEqual(sanitizeSettings(null), DEFAULT_SETTINGS);
 	assert.deepStrictEqual(sanitizeSettings(undefined), DEFAULT_SETTINGS);
 });
 
-ok('正常な値はそのまま採用される', () => {
+ok('valid values are taken as-is', () => {
 	const s = sanitizeSettings({
 		folder: 'Web/Clips',
 		memoLabel: '**✍️ メモ**: ',
@@ -30,25 +30,25 @@ ok('正常な値はそのまま採用される', () => {
 	assert.strictEqual(s.maxBackups, 10);
 });
 
-ok('空の keyword/label/heading はデフォルトに戻る（全H2一致や例外を防ぐ）', () => {
+ok('empty keyword/label/heading fall back to defaults (prevents matching every H2)', () => {
 	const s = sanitizeSettings({ headingKeyword: '', memoLabel: '   ', mergedHeading: '' });
 	assert.strictEqual(s.headingKeyword, DEFAULT_SETTINGS.headingKeyword);
 	assert.strictEqual(s.memoLabel, DEFAULT_SETTINGS.memoLabel);
 	assert.strictEqual(s.mergedHeading, DEFAULT_SETTINGS.mergedHeading);
 });
 
-ok('非文字列の label/keyword はデフォルトに戻る', () => {
+ok('non-string label/keyword fall back to defaults', () => {
 	const s = sanitizeSettings({ memoLabel: 42, headingKeyword: ['x'], mergedHeading: null });
 	assert.strictEqual(s.memoLabel, DEFAULT_SETTINGS.memoLabel);
 	assert.strictEqual(s.headingKeyword, DEFAULT_SETTINGS.headingKeyword);
 	assert.strictEqual(s.mergedHeading, DEFAULT_SETTINGS.mergedHeading);
 });
 
-ok('folder は空文字を許す（監視オフの意味を保持）', () => {
+ok('folder may be an empty string (meaning: watching is off)', () => {
 	assert.strictEqual(sanitizeSettings({ folder: '' }).folder, '');
 });
 
-ok('不正な maxBackups はデフォルトに戻り、小数は切り捨て', () => {
+ok('invalid maxBackups falls back to default, fractions are floored', () => {
 	assert.strictEqual(sanitizeSettings({ maxBackups: 0 }).maxBackups, DEFAULT_SETTINGS.maxBackups);
 	assert.strictEqual(sanitizeSettings({ maxBackups: -5 }).maxBackups, DEFAULT_SETTINGS.maxBackups);
 	assert.strictEqual(sanitizeSettings({ maxBackups: NaN }).maxBackups, DEFAULT_SETTINGS.maxBackups);
@@ -56,7 +56,7 @@ ok('不正な maxBackups はデフォルトに戻り、小数は切り捨て', (
 	assert.strictEqual(sanitizeSettings({ maxBackups: 7.9 }).maxBackups, 7);
 });
 
-ok('未知のキーは無視される', () => {
+ok('unknown keys are ignored', () => {
 	const s = sanitizeSettings({ evil: 'x', __proto__: { hacked: true } });
 	assert.strictEqual('evil' in s, false);
 	assert.strictEqual('hacked' in s, false);
