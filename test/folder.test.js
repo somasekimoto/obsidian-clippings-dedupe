@@ -3,7 +3,7 @@
 const assert = require('assert');
 const { canonicalFolder, computeFolderPrefix } = require('../main.js');
 
-// Obsidian の normalizePath 相当の代役: バックスラッシュ→スラッシュ、連続スラッシュ圧縮、先頭スラッシュ除去
+// stand-in for Obsidian's normalizePath: backslashes to slashes, collapse duplicate slashes, strip the leading slash
 const fakeNormalize = (s) => s.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\//, '');
 
 let passed = 0;
@@ -13,42 +13,42 @@ function ok(name, fn) {
 	console.log(`  ok - ${name}`);
 }
 
-ok('通常のフォルダ名はそのまま', () => {
+ok('a plain folder name passes through unchanged', () => {
 	assert.strictEqual(canonicalFolder('Clippings', fakeNormalize), 'Clippings');
 	assert.strictEqual(computeFolderPrefix('Clippings', fakeNormalize), 'Clippings/');
 });
 
-ok('末尾スラッシュ・前後空白は正規化される', () => {
+ok('trailing slashes and surrounding whitespace are canonicalized', () => {
 	assert.strictEqual(canonicalFolder('Clippings/', fakeNormalize), 'Clippings');
 	assert.strictEqual(canonicalFolder('  Clippings  ', fakeNormalize), 'Clippings');
 	assert.strictEqual(canonicalFolder('Clippings///', fakeNormalize), 'Clippings');
 	assert.strictEqual(computeFolderPrefix('Clippings/', fakeNormalize), 'Clippings/');
 });
 
-ok('ネストしたフォルダも扱える', () => {
+ok('nested folders are handled', () => {
 	assert.strictEqual(computeFolderPrefix('Web/Clippings', fakeNormalize), 'Web/Clippings/');
 	assert.strictEqual(computeFolderPrefix('Web\\Clippings', fakeNormalize), 'Web/Clippings/');
 });
 
-ok('空・空白のみ・スラッシュのみは監視オフ (null)', () => {
+ok('empty, whitespace-only, and slash-only values turn watching off (null)', () => {
 	for (const v of ['', '   ', '/', '//', ' / ']) {
 		assert.strictEqual(canonicalFolder(v, fakeNormalize), '', `canonical of ${JSON.stringify(v)}`);
 		assert.strictEqual(computeFolderPrefix(v, fakeNormalize), null, `prefix of ${JSON.stringify(v)}`);
 	}
 });
 
-ok('文字列以外が来ても落ちずにオフ扱い', () => {
+ok('non-string input does not crash and reads as off', () => {
 	for (const v of [undefined, null, 42, {}]) {
 		assert.strictEqual(computeFolderPrefix(v, fakeNormalize), null);
 	}
 });
 
-ok('normalizePath なしでも同じ規則で動く（node テスト経路）', () => {
+ok('works with the same rules without normalizePath (node test path)', () => {
 	assert.strictEqual(computeFolderPrefix('Clippings/', undefined), 'Clippings/');
 	assert.strictEqual(computeFolderPrefix('', undefined), null);
 });
 
-ok('プレフィックス判定で兄弟フォルダに誤マッチしない', () => {
+ok('prefix matching does not leak into sibling folders', () => {
 	const prefix = computeFolderPrefix('Clippings', fakeNormalize);
 	assert.strictEqual('Clippings/note.md'.startsWith(prefix), true);
 	assert.strictEqual('ClippingsArchive/note.md'.startsWith(prefix), false);
