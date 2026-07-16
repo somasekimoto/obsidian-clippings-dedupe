@@ -118,6 +118,27 @@ function parseUnits(sectionBody, settings) {
 }
 
 /*
+ * Folder-scope helpers. `settings.folder` is stored in canonical form
+ * (normalized, trimmed, no trailing slash) — loadSettings() and the settings
+ * UI both canonicalize through canonicalFolder(), and consumers derive the
+ * match prefix through computeFolderPrefix(). An empty canonical value means
+ * "watching is off": the plugin rewrites notes, so an unset scope must fail
+ * closed rather than fall back to some implicit folder.
+ */
+function canonicalFolder(raw, normalizePathFn) {
+	const folder = (typeof raw === 'string' ? raw : '').trim();
+	if (!folder) return '';
+	const normalized = (normalizePathFn ? normalizePathFn(folder) : folder).replace(/\/+$/, '');
+	return normalized === '/' ? '' : normalized;
+}
+
+/** Vault-relative prefix to match note paths against, or null when off. */
+function computeFolderPrefix(raw, normalizePathFn) {
+	const canonical = canonicalFolder(raw, normalizePathFn);
+	return canonical ? canonical + '/' : null;
+}
+
+/*
  * Backup file name codec. Generation and parsing share one format so a future
  * format change cannot silently break pruning: `<note basename>.<stamp>.md`,
  * where the stamp is an ISO timestamp with ':' and '.' replaced by '-'
@@ -221,10 +242,10 @@ if (obsidian) {
 
 			new obsidian.Setting(containerEl)
 				.setName('Clippings folder')
-				.setDesc('Only notes inside this folder are watched and deduplicated.')
+				.setDesc('Only notes inside this folder are watched and deduplicated. Leave empty to turn watching off.')
 				.addText((t) =>
 					t.setValue(this.plugin.settings.folder).onChange(async (v) => {
-						this.plugin.settings.folder = v.replace(/\/+$/, '');
+						this.plugin.settings.folder = canonicalFolder(v, obsidian.normalizePath);
 						await this.plugin.saveSettings();
 					})
 				);
@@ -286,14 +307,25 @@ if (obsidian) {
 			this.addCommand({
 				id: 'dedupe-all',
 				name: 'Deduplicate all clippings now',
-				callback: () => this.sweep(),
+				callback: () => {
+					if (this.folderPrefix() === null) {
+						new obsidian.Notice(
+							'Clippings Dedupe is off: set a clippings folder in the plugin settings.'
+						);
+						return;
+					}
+					this.sweep();
+				},
 			});
 
 			this.addSettingTab(new ClippingsDedupeSettingTab(this.app, this));
 		}
 
 		async loadSettings() {
+			// type-validate persisted data first, then canonicalize the folder
+			// (legacy/hand-edited values are canonicalized once at load time)
 			this.settings = sanitizeSettings(await this.loadData());
+			this.settings.folder = canonicalFolder(this.settings.folder, obsidian.normalizePath);
 		}
 
 		async saveSettings() {
@@ -301,17 +333,23 @@ if (obsidian) {
 		}
 
 		folderPrefix() {
-			return this.settings.folder.replace(/\/+$/, '') + '/';
+			return computeFolderPrefix(this.settings.folder, obsidian.normalizePath);
+		}
+
+		/** True when `path` is inside the watched folder as of right now. */
+		inScope(path) {
+			const prefix = this.folderPrefix();
+			return prefix !== null && path.startsWith(prefix);
 		}
 
 		sweep() {
 			for (const file of this.app.vault.getMarkdownFiles()) {
-				if (file.path.startsWith(this.folderPrefix())) this.run(file);
+				if (this.inScope(file.path)) this.run(file);
 			}
 		}
 
 		schedule(file) {
-			if (!file || !file.path || !file.path.startsWith(this.folderPrefix())) return;
+			if (!file || !file.path || !this.inScope(file.path)) return;
 			if (!file.path.endsWith('.md')) return;
 			if (this.applying.has(file.path)) return;
 			const prev = this.timers.get(file.path);
@@ -320,7 +358,9 @@ if (obsidian) {
 				file.path,
 				window.setTimeout(() => {
 					this.timers.delete(file.path);
-					this.run(file);
+					// the folder setting may have changed while this timer was
+					// pending — re-check the scope at execution time
+					if (this.inScope(file.path)) this.run(file);
 				}, 2000)
 			);
 		}
@@ -383,6 +423,8 @@ if (obsidian) {
 		parseUnits,
 		splitFrontmatter,
 		sanitizeSettings,
+		canonicalFolder,
+		computeFolderPrefix,
 		selectBackupsToPrune,
 		backupFileName,
 		backupStamp,
