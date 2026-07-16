@@ -28,9 +28,9 @@ try {
 
 const DEFAULT_SETTINGS = {
 	folder: 'Clippings',
-	memoLabel: '**✍️ メモ**: ',
-	mergedHeading: '## 📌 ハイライト',
-	headingKeyword: 'ハイライト',
+	memoLabel: '**Note**: ',
+	mergedHeading: '## Highlights',
+	headingKeyword: 'Highlight',
 	keepBackups: true,
 	maxBackups: 30,
 };
@@ -43,8 +43,32 @@ function memoLabelRe(settings) {
 	return new RegExp(escapeRegex(settings.memoLabel.trim()) + '\\s*', 'g');
 }
 
+// H2 only, matching the section split in dedupe() — an H3 containing the
+// keyword belongs to whatever H2 section it sits under and is never treated
+// as a highlight section of its own.
 function highlightHeadingRe(settings) {
-	return new RegExp('^#{2,3} .*' + escapeRegex(settings.headingKeyword));
+	return new RegExp('^## .*' + escapeRegex(settings.headingKeyword));
+}
+
+/**
+ * Merge persisted data over the defaults, rejecting values that would make
+ * the parser misbehave: labels/headings/keyword must be non-empty strings
+ * (an empty keyword would over-match every H2), maxBackups a number >= 1.
+ * `folder` accepts any string — empty means watching is off.
+ */
+function sanitizeSettings(raw) {
+	const s = Object.assign({}, DEFAULT_SETTINGS);
+	if (raw && typeof raw === 'object') {
+		if (typeof raw.folder === 'string') s.folder = raw.folder;
+		for (const k of ['memoLabel', 'mergedHeading', 'headingKeyword']) {
+			if (typeof raw[k] === 'string' && raw[k].trim() !== '') s[k] = raw[k];
+		}
+		if (typeof raw.keepBackups === 'boolean') s.keepBackups = raw.keepBackups;
+		if (typeof raw.maxBackups === 'number' && isFinite(raw.maxBackups) && raw.maxBackups >= 1) {
+			s.maxBackups = Math.floor(raw.maxBackups);
+		}
+	}
+	return s;
 }
 
 function splitFrontmatter(text) {
@@ -152,11 +176,19 @@ function dedupe(original, settings = DEFAULT_SETTINGS) {
 	const headingRe = highlightHeadingRe(settings);
 	const [frontmatter, body] = splitFrontmatter(original);
 
+	// split() does not break at a zero-width match on position 0, so when the
+	// body starts directly with a heading the first section would otherwise be
+	// swallowed into the preamble and never merged
 	const parts = body.split(/(?=^## )/m);
-	const preamble = parts[0];
+	let preamble = parts[0];
+	let sections = parts.slice(1);
+	if (/^## /.test(preamble)) {
+		sections = parts;
+		preamble = '';
+	}
 	const highlightBodies = [];
 	const otherSections = [];
-	for (const sec of parts.slice(1)) {
+	for (const sec of sections) {
 		const heading = sec.split('\n', 1)[0];
 		if (headingRe.test(heading)) {
 			highlightBodies.push(sec.slice(heading.length));
@@ -290,8 +322,9 @@ if (obsidian) {
 		}
 
 		async loadSettings() {
-			this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-			// legacy/hand-edited values are canonicalized once at load time
+			// type-validate persisted data first, then canonicalize the folder
+			// (legacy/hand-edited values are canonicalized once at load time)
+			this.settings = sanitizeSettings(await this.loadData());
 			this.settings.folder = canonicalFolder(this.settings.folder, obsidian.normalizePath);
 		}
 
@@ -389,6 +422,7 @@ if (obsidian) {
 		dedupe,
 		parseUnits,
 		splitFrontmatter,
+		sanitizeSettings,
 		canonicalFolder,
 		computeFolderPrefix,
 		selectBackupsToPrune,

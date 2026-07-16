@@ -1,8 +1,8 @@
 {
 	"schemaVersion": "0.1.0",
-	"name": "Highlights 追記",
+	"name": "Highlights append",
 	"behavior": "append-specific",
-	"noteContentFormat": "\n## 📌 ハイライト（{{date}} 追加）\n\n> {{highlights|map:i => i.text|join:\"\\n\\n**✍️ メモ**: \\n\\n---\\n\\n> \"}}\n\n**✍️ メモ**: \n",
+	"noteContentFormat": "\n## Highlights (added {{date}})\n\n> {{highlights|map:i => i.text|join:\"\\n\\n**Note**: \\n\\n---\\n\\n> \"}}\n\n**Note**: \n",
 	"properties": [],
 	"triggers": [],
 	"noteNameFormat": "{{title}}",

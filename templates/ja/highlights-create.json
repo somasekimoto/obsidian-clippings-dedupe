@@ -1,8 +1,8 @@
 {
 	"schemaVersion": "0.1.0",
-	"name": "Highlights + notes",
+	"name": "Highlights + メモ",
 	"behavior": "create",
-	"noteContentFormat": "> [!abstract]- Summary\n> {{description}}\n\n## Highlights\n\n> {{highlights|map:i => i.text|join:\"\\n\\n**Note**: \\n\\n---\\n\\n> \"}}\n\n**Note**: \n\n---\n\n## Closing notes\n\n- \n",
+	"noteContentFormat": "> [!abstract]- 記事の概要\n> {{description}}\n\n## 📌 ハイライト\n\n> {{highlights|map:i => i.text|join:\"\\n\\n**✍️ メモ**: \\n\\n---\\n\\n> \"}}\n\n**✍️ メモ**: \n\n---\n\n## ✍️ 全体メモ\n\n- \n",
 	"properties": [
 		{
 			"name": "title",
