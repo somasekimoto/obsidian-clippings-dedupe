@@ -10,6 +10,6 @@ fi
 VAULT="$(cat .vaultpath)"
 DEST="$VAULT/.obsidian/plugins/clippings-dedupe"
 mkdir -p "$DEST"
-node test/test.js
+npm test
 cp main.js manifest.json "$DEST/"
 echo "deployed to: $DEST"
