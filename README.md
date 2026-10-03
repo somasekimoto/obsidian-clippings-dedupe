@@ -4,6 +4,8 @@ An Obsidian plugin that merges duplicate highlights appended by the official
 [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) — while
 protecting the comments you write under each quote.
 
+<!-- TODO: before/after screenshot — a note with duplicated quotes, then the same note after dedupe with the comment preserved -->
+
 ## The problem
 
 The Web Clipper cannot append "only new highlights" to an existing note
@@ -30,7 +32,8 @@ Whenever a note inside your clippings folder changes, the plugin:
 
 It runs 2 seconds after a clip lands, sweeps all clippings on startup, and can
 be triggered manually via the command palette (`Deduplicate all clippings now`).
-Notes without duplicates are never touched.
+Notes without duplicates are never touched. No Readwise or other sync service is
+required — it works with the official Web Clipper alone.
 
 ## Expected note shape
 
@@ -68,15 +71,11 @@ included in [`templates/`](templates/), with Japanese variants in
 
 ## Install
 
-Until the plugin is accepted into the community catalog:
+Settings → Community plugins → Browse → search **Clippings Dedupe** → Install → Enable.
 
-1. Copy `main.js` and `manifest.json` into
-   `<vault>/.obsidian/plugins/clippings-dedupe/`
-2. Settings → Community plugins → turn off Restricted mode → enable
-   **Clippings Dedupe**
-
-Or install via [BRAT](https://github.com/TfTHacker/obsidian42-brat) with this
-repository.
+To try an unreleased build: install via [BRAT](https://github.com/TfTHacker/obsidian42-brat)
+with this repository, or copy `main.js` and `manifest.json` into
+`<vault>/.obsidian/plugins/clippings-dedupe/`.
 
 ## Development
 
@@ -85,6 +84,13 @@ npm test          # run the node test suite (no build step — main.js is plain 
 npm run deploy    # run tests, then copy main.js + manifest.json into your vault
                   # (put your vault path in .vaultpath first)
 ```
+
+## Contributing
+
+Issues and PRs are welcome. `npm test` must pass; add a test in `test/` for any
+behaviour change (fixtures are plain markdown strings — no Obsidian needed).
+Ideas that would help: support for other clipper templates (Omnivore, Readwise
+export), Kindle highlight notes, settings UI localisation.
 
 ---
 
