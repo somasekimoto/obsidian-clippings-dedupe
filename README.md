@@ -75,7 +75,7 @@ Settings → Community plugins → Browse → search **Clippings Dedupe** → In
 
 To try an unreleased build: install via [BRAT](https://github.com/TfTHacker/obsidian42-brat)
 with this repository, or copy `main.js` and `manifest.json` into
-`<vault>/.obsidian/plugins/clippings-dedupe/`.
+`<vault>/.obsidian/plugins/clippings-dedupe/`, then turn off Restricted mode and enable **Clippings Dedupe**.
 
 ## Development
 
