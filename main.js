@@ -187,10 +187,12 @@ function dedupe(original, settings = DEFAULT_SETTINGS) {
 		preamble = '';
 	}
 	const highlightBodies = [];
+	const highlightHeadings = [];
 	const otherSections = [];
 	for (const sec of sections) {
 		const heading = sec.split('\n', 1)[0];
 		if (headingRe.test(heading)) {
+			highlightHeadings.push(heading);
 			highlightBodies.push(sec.slice(heading.length));
 		} else {
 			otherSections.push(sec);
@@ -218,6 +220,20 @@ function dedupe(original, settings = DEFAULT_SETTINGS) {
 		}
 	}
 	if (kept.length === 0) return null;
+
+	// Nothing to merge, nothing to fold, nothing promoted: the note already
+	// has a single highlights section under the configured heading, holding
+	// exactly these units in this order. Any textual diff from here on is
+	// pure formatting (blank lines around the heading/separators, trailing
+	// newlines), so skip the rewrite rather than flag it as a change.
+	if (
+		highlightBodies.length === 1 &&
+		highlightHeadings[0] === settings.mergedHeading &&
+		kept.length === units.length &&
+		kept.every((u, i) => u === units[i])
+	) {
+		return null;
+	}
 
 	const section =
 		settings.mergedHeading + '\n\n' + kept.map((u) => u.text).join('\n\n---\n\n') + '\n';

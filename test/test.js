@@ -93,6 +93,16 @@ ok('a clean note without duplicates is left alone', () => {
 	assert.strictEqual(dedupe(note([unit(Q1, 'comment'), unit(Q2)])), null);
 });
 
+ok('no blank line after the heading is treated as formatting, not a change', () => {
+	const original = `## Highlights\n> ${Q1}\n\n**Note**: a comment\n\n---\n`;
+	assert.strictEqual(dedupe(original), null);
+});
+
+ok('no trailing blank line at the end of the note is treated as formatting, not a change', () => {
+	const original = `## Highlights\n\n> ${Q1}\n\n**Note**: a comment\n`;
+	assert.strictEqual(dedupe(original), null);
+});
+
 ok('notes without a highlights section are ignored', () => {
 	assert.strictEqual(dedupe(FM + '# Just a note\n\nBody text.\n'), null);
 });
