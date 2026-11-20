@@ -408,6 +408,7 @@ if (obsidian) {
 				}
 			} catch (e) {
 				console.error('[clippings-dedupe]', e);
+				new obsidian.Notice(`Clippings Dedupe failed on "${file.basename}": ${e && e.message ? e.message : e}`);
 			}
 		}
 
