@@ -103,6 +103,19 @@ ok('no trailing blank line at the end of the note is treated as formatting, not 
 	assert.strictEqual(dedupe(original), null);
 });
 
+ok('duplicates inside a single highlights section still merge', () => {
+	const out = dedupe(note([unit(Q1), unit(Q2), unit(Q1, 'my comment')]));
+	assert.notStrictEqual(out, null);
+	assert.strictEqual(out.split(Q1).length - 1, 1);
+	assert(out.includes('my comment'));
+});
+
+ok('a lone section under a non-canonical heading is still renamed', () => {
+	const out = dedupe(`## Highlights (added 2026-07-11)\n\n> ${Q1}\n\n**Note**: a comment\n`);
+	assert.notStrictEqual(out, null);
+	assert(out.startsWith('## Highlights\n'));
+});
+
 ok('notes without a highlights section are ignored', () => {
 	assert.strictEqual(dedupe(FM + '# Just a note\n\nBody text.\n'), null);
 });
