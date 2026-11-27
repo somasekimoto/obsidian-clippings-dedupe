@@ -49,6 +49,7 @@ function makePlugin(settings, vault) {
 	plugin.settings = settings;
 	plugin.manifest = { dir: '.obsidian/plugins/clippings-dedupe' };
 	plugin.applying = new Set();
+	plugin.failureNoticeAt = new Map();
 	plugin.app = { vault };
 	return plugin;
 }
@@ -108,6 +109,41 @@ function withSilencedConsoleError(fn) {
 		assert(obsidian.Notice.sent[0].includes('y'), 'Notice should name the file');
 		assert(obsidian.Notice.sent[0].includes('disk full'), 'Notice should include the error');
 		assert.strictEqual(processCalled, false, 'a failed backup must not be followed by the rewrite');
+	});
+
+	await ok('a second failure on the same path within the throttle window adds no second Notice', async () => {
+		obsidian.Notice.sent.length = 0;
+		const file = { path: 'Clippings/z.md', basename: 'z' };
+		const plugin = makePlugin({ ...DEFAULT_SETTINGS, keepBackups: false }, {
+			cachedRead: async () => DUPLICATE_NOTE,
+			process: async () => {
+				throw new Error('disk write failed');
+			},
+		});
+
+		await withSilencedConsoleError(() => plugin.run(file));
+		const errorCalls = await withSilencedConsoleError(() => plugin.run(file));
+
+		assert.strictEqual(errorCalls.length, 1, 'console.error should still fire on every failure');
+		assert.strictEqual(obsidian.Notice.sent.length, 1, 'only the first failure should surface a Notice');
+	});
+
+	await ok('a failure after the throttle window elapses surfaces another Notice', async () => {
+		obsidian.Notice.sent.length = 0;
+		const file = { path: 'Clippings/w.md', basename: 'w' };
+		const plugin = makePlugin({ ...DEFAULT_SETTINGS, keepBackups: false }, {
+			cachedRead: async () => DUPLICATE_NOTE,
+			process: async () => {
+				throw new Error('disk write failed');
+			},
+		});
+
+		await withSilencedConsoleError(() => plugin.run(file));
+		// simulate the throttle window having elapsed since the first failure
+		plugin.failureNoticeAt.set(file.path, Date.now() - 6 * 60 * 1000);
+		await withSilencedConsoleError(() => plugin.run(file));
+
+		assert.strictEqual(obsidian.Notice.sent.length, 2, 'a failure past the throttle window should surface again');
 	});
 
 	console.log(`\n${passed} tests passed`);

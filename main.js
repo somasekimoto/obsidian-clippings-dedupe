@@ -35,6 +35,11 @@ const DEFAULT_SETTINGS = {
 	maxBackups: 30,
 };
 
+// a note whose dedupe keeps failing (e.g. backups can't be written) would
+// otherwise re-show the failure Notice on every run() — after each edit's
+// debounce, and again on every startup sweep
+const FAILURE_NOTICE_THROTTLE_MS = 5 * 60 * 1000;
+
 function escapeRegex(s) {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -297,6 +302,7 @@ if (obsidian) {
 			await this.loadSettings();
 			this.timers = new Map();
 			this.applying = new Set();
+			this.failureNoticeAt = new Map();
 
 			this.registerEvent(
 				this.app.vault.on('modify', (file) => this.schedule(file))
@@ -408,7 +414,12 @@ if (obsidian) {
 				}
 			} catch (e) {
 				console.error('[clippings-dedupe]', e);
-				new obsidian.Notice(`Clippings Dedupe failed on "${file.basename}": ${e && e.message ? e.message : e}`);
+				const now = Date.now();
+				const last = this.failureNoticeAt.get(file.path) ?? 0;
+				if (now - last >= FAILURE_NOTICE_THROTTLE_MS) {
+					this.failureNoticeAt.set(file.path, now);
+					new obsidian.Notice(`Clippings Dedupe failed on "${file.basename}": ${e && e.message ? e.message : e}`);
+				}
 			}
 		}
 
